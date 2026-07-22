@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Rig Spiral — Heavy Equipment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --graphite:#12151A;   /* stage / bg */
+    --panel:#1A1E26;      /* instrument glass */
+    --steel:#6B7480;      /* mid metal */
+    --concrete:#E7E2D6;   /* readable off-white */
+    --yellow:#F2B838;     /* safety yellow — the one bold move */
+    --orange:#E8681C;     /* hazard accent */
+    --line:#2A2F38;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; width:100%; }
+  body{
+    background:var(--graphite); color:var(--concrete);
+    font-family:"Oswald",system-ui,sans-serif;
+    position:fixed; inset:0; overflow:hidden; overscroll-behavior:none;
+    -webkit-font-smoothing:antialiased;
+  }
+  #stage{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+
+  /* hazard stripe — the signature device, used once */
+  .hazard{
+    height:6px; width:100%;
+    background:repeating-linear-gradient(45deg,var(--yellow) 0 14px,#12151A 14px 28px);
+  }
+
+  /* masthead */
+  .mast{
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    pointer-events:none;
+  }
+  .mast .row{
+    display:flex; align-items:baseline; gap:.7rem;
+    padding:16px 20px 12px;
+  }
+  .mast h1{
+    font-weight:700; font-size:clamp(18px,2.6vw,26px);
+    letter-spacing:.18em; text-transform:uppercase; color:var(--concrete);
+  }
+  .mast h1 b{ color:var(--yellow); font-weight:700; }
+  .mast .sub{
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.14em;
+    color:var(--steel); text-transform:uppercase;
+  }
+
+  /* telemetry HUD — instrument readout */
+  .hud{
+    position:fixed; left:20px; bottom:20px; z-index:10;
+    background:rgba(26,30,38,.72); backdrop-filter:blur(9px);
+    border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; min-width:230px;
+    box-shadow:0 10px 40px rgba(0,0,0,.45);
+  }
+  .hud .cap{
+    font-family:"Space Mono",monospace; font-size:10px; letter-spacing:.22em;
+    color:var(--steel); text-transform:uppercase; margin-bottom:10px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .hud .cap .dot{ width:7px; height:7px; border-radius:50%; background:var(--yellow); box-shadow:0 0 10px var(--yellow); }
+  .gauge{ display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-top:1px solid var(--line); }
+  .gauge .k{ font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--concrete); }
+  .gauge .v{ font-family:"Space Mono",monospace; font-size:15px; color:var(--yellow); }
+  .gauge .v.o{ color:var(--orange); }
+
+  .ctrl{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .ctrl label{ display:block; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--steel); margin:0 0 4px; font-family:"Space Mono",monospace; }
+  .ctrl input[type=range]{ width:100%; accent-color:var(--yellow); height:20px; }
+  .btns{ display:flex; gap:8px; margin-top:10px; }
+  .btns button{
+    flex:1; cursor:pointer; font-family:"Oswald",sans-serif; font-weight:600;
+    font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--concrete); background:transparent;
+    border:1px solid var(--steel); border-radius:7px; padding:8px 6px;
+    transition:.15s;
+  }
+  .btns button:hover{ border-color:var(--yellow); color:var(--yellow); }
+  .btns button:focus-visible{ outline:2px solid var(--yellow); outline-offset:2px; }
+  .btns button[aria-pressed=true]{ background:var(--yellow); color:#12151A; border-color:var(--yellow); }
+
+  .hint{
+    position:fixed; right:20px; bottom:22px; z-index:10; text-align:right;
+    font-family:"Space Mono",monospace; font-size:11px; letter-spacing:.1em;
+    color:var(--steel); line-height:1.7; pointer-events:none;
+  }
+  .hint b{ color:var(--concrete); font-weight:400; }
+  .hint .sc{ color:var(--yellow); }
+
+  .infobox{
+    position:fixed; z-index:20; width:340px; max-width:calc(100vw - 20px); max-height:360px; overflow-y:auto;
+    background:rgba(20,24,30,.93); backdrop-filter:blur(10px);
+    border:1px solid var(--line); border-left:3px solid var(--yellow); border-radius:10px;
+    padding:14px 16px; box-shadow:0 16px 50px rgba(0,0,0,.55);
+    display:none; pointer-events:none;
+  }
+  .infobox.show{ display:block; }
+  .infobox h3{
+    font-family:"Oswald",sans-serif; font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+    font-size:15px; color:var(--yellow); margin-bottom:8px;
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .infobox h3 .tag{ font-family:"Space Mono",monospace; font-size:10px; letter-spacing:.12em; color:var(--steel); }
+  .infobox p{ font-family:"Space Mono",monospace; font-size:12.5px; line-height:1.62; color:var(--concrete); }
+  .infobox::-webkit-scrollbar{ width:8px; }
+  .infobox::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+
+  @media (max-width:560px){
+    .hint{ display:none; }
+    .mast .row{ padding:calc(10px + env(safe-area-inset-top,0px)) 14px 8px; }
+    .mast h1{ font-size:18px; letter-spacing:.12em; }
+    .mast .sub{ display:none; }
+    .hud{
+      left:10px; right:10px; min-width:0; padding:11px 12px;
+      bottom:calc(10px + env(safe-area-inset-bottom,0px));
+    }
+    .hud .cap{ margin-bottom:7px; }
+    .gauge{ padding:3px 0; }
+    .gauge .k{ font-size:12px; }
+    .gauge .v{ font-size:13px; }
+    .ctrl{ margin-top:8px; padding-top:7px; }
+    .ctrl label{ font-size:10px; }
+    .btns button{ padding:9px 6px; font-size:11px; }
+    .infobox{ width:auto; left:10px; right:10px; max-height:44vh; }
+  }
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <header class="mast">
+    <div class="hazard"></div>
+    <div class="row">
+      <h1>Rig <b>Roll</b></h1>
+      <span class="sub">// z-line · locked entity · x/y/z spin</span>
+    </div>
+  </header>
+
+  <section class="hud" aria-label="Telemetry">
+    <div class="cap"><span>Telemetry</span><span class="dot" id="live"></span></div>
+    <div class="gauge"><span class="k">Yaw (Y)</span><span class="v" id="gSpin">0°</span></div>
+    <div class="gauge"><span class="k">Pitch (X)</span><span class="v o" id="gSpiral">0°</span></div>
+    <div class="gauge"><span class="k">Roll (Z)</span><span class="v" id="gLift">0°</span></div>
+
+    <div class="ctrl">
+      <label for="sSpin">Y spin speed</label>
+      <input id="sSpin" type="range" min="0" max="100" value="25" />
+    </div>
+    <div class="ctrl">
+      <label for="sSens">X spin speed</label>
+      <input id="sSens" type="range" min="0" max="100" value="0" />
+    </div>
+    <div class="ctrl">
+      <label for="sZrot">Z spin speed</label>
+      <input id="sZrot" type="range" min="0" max="100" value="0" />
+    </div>
+    <div class="btns">
+      <button id="bPause" aria-pressed="true">Spin: on</button>
+      <button id="bReset">Reset</button>
+    </div>
+  </section>
+
+  <div class="hint">
+    <div><b>SCROLL</b> <span class="sc">↕</span> advance the turntable on Y</div>
+    <div>line locked · spins as one entity</div>
+  </div>
+
+  <aside class="infobox" id="infobox">
+    <h3><span class="name">Item</span><span class="tag">HOVER · PAUSED</span></h3>
+    <p></p>
+  </aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  "use strict";
+  const COL = {
+    bg:0x12151A, steel:0x6B7480, rim:0x8A929B, tire:0x14171C,
+    green:0x3F7D34, yellow:0xE8B21C, orange:0xE8681C,
+    dark:0x23272E, glass:0x1B2A33, concrete:0xE7E2D6
+  };
+
+  // ---------- configurable base start point (edit these) ----------
+  const CONFIG = {
+    basePosition:  { x: 0, y: 0, z: 0 },   // world anchor where the line is first rendered
+    startRotation: { x: 0, y: 0, z: 0 },   // initial orientation of the line, in degrees
+  };
+
+  // ---------- renderer / scene / camera ----------
+  const canvas = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(COL.bg, 1);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(COL.bg, 16, 60);
+
+  const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 200);
+  camera.position.set(11, 5.4, 12.5); // overridden by frame()
+
+  // ---------- lighting ----------
+  scene.add(new THREE.HemisphereLight(0x9fb4c8, 0x1a1e24, 0.65));
+  const key = new THREE.DirectionalLight(0xffffff, 1.05);
+  key.position.set(8, 14, 6);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xF2B838, 0.32); // warm safety-yellow rim
+  rim.position.set(-9, 4, -7);
+  scene.add(rim);
+
+  // subtle ground reference so the vertical lift reads
+  const grid = new THREE.GridHelper(70, 70, 0x2b313b, 0x1b1f26);
+  grid.position.y = -3.2;
+  scene.add(grid);
+
+  // ---------- material + mesh helpers ----------
+  const mat = (color, roughness=0.65, metalness=0.35) =>
+    new THREE.MeshStandardMaterial({ color, roughness, metalness });
+  const box = (w,h,d,m) => new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m);
+  const cyl = (rt,rb,h,m,seg=24) => new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), m);
+  const cone = (r,h,m,seg=24) => new THREE.Mesh(new THREE.ConeGeometry(r,h,seg), m);
+
+  // wheel: axle along 'z' (vehicle side wheels) or 'x' (track sprockets)
+  function wheel(radius, width, axis='z', tireCol=COL.tire){
+    const g = new THREE.Group();
+    const tire = cyl(radius, radius, width, mat(tireCol, 0.85, 0.1), 26);
+    const hub  = cyl(radius*0.45, radius*0.45, width*1.06, mat(COL.rim, 0.4, 0.7), 18);
+    if (axis === 'z'){ tire.rotation.x = Math.PI/2; hub.rotation.x = Math.PI/2; }
+    else            { tire.rotation.z = Math.PI/2; hub.rotation.z = Math.PI/2; }
+    g.add(tire, hub);
+    return g;
+  }
+
+  // recenter a group on its bounding-box centre so it tumbles about its middle
+  function center(group){
+    const b = new THREE.Box3().setFromObject(group);
+    const c = b.getCenter(new THREE.Vector3());
+    group.children.forEach(ch => ch.position.sub(c));
+    return group;
+  }
+
+  // ---------- object builders ----------
+  function makeTractor(){
+    const g = new THREE.Group();
+    const green = mat(COL.green, 0.55, 0.25);
+    const chassis = box(1.7, 0.55, 0.95, green);          chassis.position.set(0, 0.55, 0);
+    const hood    = box(1.0, 0.5, 0.85, green);           hood.position.set(0.95, 0.5, 0);
+    const cabin   = box(0.85, 0.7, 0.85, mat(0x2c4f26,0.6,0.2)); cabin.position.set(-0.25, 1.1, 0);
+    const glass   = box(0.9, 0.42, 0.62, mat(COL.glass,0.15,0.5)); glass.position.set(-0.25, 1.18, 0);
+    const stack   = cyl(0.06,0.06,0.55, mat(0x2b2f34,0.7,0.4)); stack.position.set(0.55, 1.05, 0.3);
+    g.add(chassis, hood, cabin, glass, stack);
+    const rearL = wheel(0.55, 0.24); rearL.position.set(-0.45, 0.25,  0.62);
+    const rearR = wheel(0.55, 0.24); rearR.position.set(-0.45, 0.25, -0.62);
+    const frtL  = wheel(0.32, 0.20); frtL.position.set( 0.95, 0.05,  0.6);
+    const frtR  = wheel(0.32, 0.20); frtR.position.set( 0.95, 0.05, -0.6);
+    g.add(rearL, rearR, frtL, frtR);
+    return center(g);
+  }
+
+  function makeCrane(){
+    const g = new THREE.Group();
+    const yel = mat(COL.yellow, 0.5, 0.4);
+    const base = box(1.0, 0.35, 1.0, mat(COL.dark,0.7,0.3)); base.position.y = 0.15;
+    const tracksL = box(1.3, 0.3, 0.28, mat(0x15181d,0.9,0.1)); tracksL.position.set(0,0.05, 0.5);
+    const tracksR = box(1.3, 0.3, 0.28, mat(0x15181d,0.9,0.1)); tracksR.position.set(0,0.05,-0.5);
+    const mast = box(0.26, 3.0, 0.26, yel); mast.position.y = 1.85;
+    // simple lattice cross-bracing
+    for (let i=0;i<5;i++){
+      const br = box(0.34,0.05,0.05, yel); br.position.set(0, 0.7+i*0.55, 0.14);
+      br.rotation.z = (i%2? 0.5:-0.5); g.add(br);
+      const br2 = br.clone(); br2.position.z = -0.14; g.add(br2);
+    }
+    const jib = box(3.4, 0.16, 0.16, yel); jib.position.set(0.9, 3.35, 0);
+    const cjib = box(1.1, 0.16, 0.16, yel); cjib.position.set(-1.1, 3.35, 0);
+    const counterW = box(0.5, 0.5, 0.6, mat(COL.dark,0.8,0.2)); counterW.position.set(-1.55, 3.2, 0);
+    const cable = cyl(0.03,0.03,1.3, mat(0x0f1114,0.6,0.3)); cable.position.set(2.1, 2.7, 0);
+    const hook = box(0.18,0.28,0.18, mat(COL.steel,0.4,0.7)); hook.position.set(2.1, 1.95, 0);
+    g.add(base, tracksL, tracksR, mast, jib, cjib, counterW, cable, hook);
+    return center(g);
+  }
+
+  function makeDrill(){
+    const g = new THREE.Group();
+    const steel = mat(COL.steel, 0.35, 0.75);
+    const houseC = mat(COL.orange, 0.45, 0.4);
+    const motor = box(0.7, 0.9, 0.7, houseC); motor.position.y = 1.85;
+    const collar = cyl(0.28, 0.28, 0.25, steel); collar.position.y = 1.32;
+    const shaft = cyl(0.11, 0.11, 2.2, steel);  shaft.position.y = 0.35;
+    // helical auger flutes: stack thin blades rotating about Y
+    const bladeMat = mat(COL.orange, 0.5, 0.35);
+    for (let i=0;i<34;i++){
+      const bl = box(0.5, 0.05, 0.13, bladeMat);
+      bl.position.y = 1.15 - i*0.065;
+      bl.rotation.y = i*0.62;
+      g.add(bl);
+    }
+    const tip = cone(0.26, 0.55, steel); tip.position.y = -0.95; tip.rotation.x = Math.PI; // point down
+    g.add(motor, collar, shaft, tip);
+    return center(g);
+  }
+
+  function makeTrack(){
+    // continuous (caterpillar) track: stadium loop in the Z–Y plane, wheel axles along X
+    const g = new THREE.Group();
+    const W = 0.62, L = 1.7, R = 0.62;
+    const treadMat = mat(0x1c2026, 0.9, 0.15);
+    const N = 52, per = 2*L + 2*Math.PI*R;
+    for (let i=0;i<N;i++){
+      const s = (i/N)*per;
+      let z, y, tanZ, tanY;
+      if (s < L){                              // top straight  (-z -> +z)
+        z = -L/2 + s; y = R; tanZ = 1; tanY = 0;
+      } else if (s < L + Math.PI*R){           // right cap (top -> bottom)
+        const t = (s - L)/R;                   // 0 .. PI
+        const a = Math.PI/2 - t;               // +90° -> -90°
+        z = L/2 + R*Math.cos(a); y = R*Math.sin(a);
+        tanZ = -Math.sin(a); tanY = -Math.cos(a);
+      } else if (s < 2*L + Math.PI*R){         // bottom straight (+z -> -z)
+        const d = s - (L + Math.PI*R);
+        z = L/2 - d; y = -R; tanZ = -1; tanY = 0;
+      } else {                                 // left cap (bottom -> top)
+        const t = (s - (2*L + Math.PI*R))/R;   // 0 .. PI
+        const a = -Math.PI/2 - t;
+        z = -L/2 + R*Math.cos(a); y = R*Math.sin(a);
+        tanZ = -Math.sin(a); tanY = -Math.cos(a);
+      }
+      const tread = box(W, 0.2, 0.17, treadMat);
+      tread.position.set(0, y, z);
+      tread.rotation.x = Math.atan2(-tanY, tanZ);  // local +z -> tangent, thickness -> outward
+      g.add(tread);
+    }
+    // sprockets + a road wheel
+    const spF = wheel(R*0.82, W*0.8, 'x', 0x2b3037); spF.position.set(0,0, L/2);
+    const spB = wheel(R*0.82, W*0.8, 'x', 0x2b3037); spB.position.set(0,0,-L/2);
+    const road = wheel(R*0.4, W*0.6, 'x', 0x2b3037); road.position.set(0,-R*0.35,0);
+    g.add(spF, spB, road);
+    return center(g);
+  }
+
+  // ---------- lay out the row on the z-axis ----------
+  const specs = [
+    { name:'TRACTOR', make:makeTractor, scale:0.85 },
+    { name:'CRANE',   make:makeCrane,   scale:0.56 },
+    { name:'DRILL',   make:makeDrill,   scale:0.68 },
+    { name:'TRACK',   make:makeTrack,   scale:0.95 },
+  ];
+  const SPACING = 3.2;
+  const objects = [];
+  const rig = new THREE.Group();   // the whole line, locked & moved as one rigid entity
+  scene.add(rig);
+
+  const mid = (specs.length - 1) / 2;
+  specs.forEach((sp, i) => {
+    const o = sp.make();
+    o.scale.setScalar(sp.scale);
+    o.position.z = (mid - i) * SPACING;  // line centred on the pivot; object #1 toward the front (+z)
+    o.userData = { index: i, name: sp.name };
+    rig.add(o);
+    objects.push(o);
+  });
+
+  // ---------- fixed station labels (sprites, always face camera) ----------
+  const labels = [];
+  function labelTexture(text){
+    const c = document.createElement('canvas'); c.width = 320; c.height = 72;
+    const x = c.getContext('2d');
+    x.clearRect(0,0,c.width,c.height);
+    x.font = "600 40px Oswald, Arial, sans-serif";
+    x.textAlign = "center"; x.textBaseline = "middle";
+    x.fillStyle = "#E7E2D6";
+    x.fillText(text, c.width/2, c.height/2 + 2);
+    // small yellow tick under the word
+    x.fillStyle = "#F2B838";
+    x.fillRect(c.width/2 - 26, c.height - 12, 52, 4);
+    const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.needsUpdate = true;
+    return t;
+  }
+  const rigBox = new THREE.Box3();
+  objects.forEach(o => rigBox.expandByObject(o));
+  const labelY = rigBox.min.y - 0.5;
+  objects.forEach((o) => {
+    const tex = labelTexture(o.userData.name);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false }));
+    spr.scale.set(1.9, 0.42, 1);
+    spr.position.set(0, labelY, o.position.z);
+    spr.userData = { tex, index: o.userData.index, name: o.userData.name };
+    rig.add(spr);
+    labels.push(spr);
+  });
+  // redraw labels once Oswald is actually loaded
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(() => {
+      labels.forEach((spr, i) => {
+        spr.material.map.dispose();
+        spr.material.map = labelTexture(objects[i].userData.name);
+        spr.material.needsUpdate = true;
+      });
+    });
+  }
+
+  // ---------- motion state ----------
+  const RAD = Math.PI/180;
+  const state = {
+    xAngle: CONFIG.startRotation.x * RAD, xTarget: CONFIG.startRotation.x * RAD,   // pitch about X
+    yAngle: CONFIG.startRotation.y * RAD, yTarget: CONFIG.startRotation.y * RAD,   // yaw about Y (turntable)
+    zAngle: CONFIG.startRotation.z * RAD, zTarget: CONFIG.startRotation.z * RAD,   // roll about Z
+    xSpeed: 0,                     // rad/frame auto-spin about X (configurable)
+    ySpeed: 15 * RAD / 60,         // rad/frame auto-spin about Y (gradual, clockwise) ~15°/s
+    zSpeed: 0,                     // rad/frame auto-spin about Z (configurable)
+    sensitivity: 0.0018,           // scroll delta -> radians (nudges the turntable)
+    spinning: true,                // gradual auto-spin on by default
+    hoverPaused: false,            // frozen while a label is hovered
+  };
+
+  // ---------- input ----------
+  window.addEventListener('wheel', (e) => {
+    state.yTarget -= e.deltaY * state.sensitivity; // scroll advances the turntable on Y (flip sign to reverse)
+    e.preventDefault();
+  }, { passive:false });
+
+  // ---------- hover a label -> pause + info panel (sample copy for now; panel holds ~300 words) ----------
+  const DESCRIPTIONS = {
+    TRACTOR: "Sample description — the tractor is the workhorse of the line, built for traction and torque rather than speed. Placeholder copy: its large rear drive wheels bite into soft ground while the compact front axle steers a tight path between obstacles, and the operator sits high in the cab for clear sightlines across the yard. In this prototype the model stands in for any prime mover, so the mesh can be swapped for a loader, hauler, or utility rig without touching the layout logic. Use this space to surface payload ratings, attachment compatibility, hydraulic flow, or service intervals in the finished build. Roughly three hundred words fit here before the panel begins to scroll.",
+    CRANE: "Sample description — the crane handles the vertical work the rest of the line cannot reach. Placeholder copy: a lattice mast carries the load while the counter-jib and its weight balance the moment out to the hook, and the tracked base keeps the whole assembly stable on uneven fill. Swap this text for the real specification later: maximum lift, radius-versus-capacity curve, boom configurations, wind limits, and the rigging checklist an operator would confirm before a pick. The 3D model here is deliberately schematic so the focus stays on motion and layout. This panel is scrollable and comfortably holds about three hundred words of detail per item when you need the room.",
+    DRILL: "Sample description — the drill rig sinks the holes everything else is built around. Placeholder copy: a helical auger threads spoil up and out of the bore while the powerhead at the top supplies rotation and down-force, and the conical tip breaks ground at the leading edge. Replace this with genuine data for the shipping version: torque and crowd figures, bore diameters, achievable depth, flight pitch, and the ground conditions the tool is rated for. As with the other machines the geometry is procedural rather than a scan, which keeps the file light. Up to three hundred words of description will display in this box, scrolling once the content overflows the visible height.",
+    TRACK: "Sample description — the track is the undercarriage that everything heavy rides on. Placeholder copy: a continuous belt of tread plates wraps the drive sprocket and idler so the load spreads across a long footprint, dropping ground pressure and letting the machine cross terrain that would trap a wheeled chassis. Use this area for the real numbers later: pad width, pitch, ground-contact length, ground pressure, and the drive arrangement. The stadium-loop geometry here is generated in code, so tread count and radius are parameters you can tune. This panel accepts roughly three hundred words per entry and will scroll neatly whenever a description runs longer than the box."
+  };
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const infobox = document.getElementById('infobox');
+  const infoName = infobox.querySelector('.name');
+  const infoBody = infobox.querySelector('p');
+  let hovered = null;
+
+  function placeBox(mx, my){
+    const bw = infobox.offsetWidth, bh = infobox.offsetHeight, pad = 14;
+    let x = mx + 18, y = my + 18;
+    if (x + bw > window.innerWidth  - pad) x = mx - bw - 18;
+    if (y + bh > window.innerHeight - pad) y = window.innerHeight - bh - pad;
+    infobox.style.left = Math.max(pad, x) + 'px';
+    infobox.style.top  = Math.max(pad, y) + 'px';
+  }
+
+  function clearHover(){
+    if (hovered !== null){ hovered = null; infobox.classList.remove('show'); }
+    state.hoverPaused = false;
+  }
+
+  window.addEventListener('mousemove', (e) => {
+    ndc.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+    ndc.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    rig.updateMatrixWorld();                       // labels move with the rig; keep matrices current
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(labels, false)[0];
+    if (hit){
+      const name = hit.object.userData.name;
+      if (hovered !== name){
+        hovered = name;
+        infoName.textContent = name;
+        infoBody.textContent = DESCRIPTIONS[name] || '';
+        infobox.classList.add('show');
+      }
+      state.hoverPaused = true;                     // freeze the animation while hovering the text
+      placeBox(e.clientX, e.clientY);
+    } else {
+      clearHover();
+    }
+  });
+  window.addEventListener('mouseleave', clearHover);
+
+  // ---------- touch: drag to spin the turntable (scroll wheel isn't available on mobile) ----------
+  let touchY = null;
+  window.addEventListener('touchstart', (e) => {
+    clearHover();
+    if (e.target.closest && e.target.closest('.hud')) { touchY = null; return; } // let controls work
+    touchY = e.touches.length === 1 ? e.touches[0].clientY : null;
+  }, { passive:true });
+  window.addEventListener('touchmove', (e) => {
+    if (touchY === null || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY;
+    state.yTarget -= (y - touchY) * 0.012;   // vertical drag advances the turntable
+    touchY = y;
+  }, { passive:true });
+  window.addEventListener('touchend', () => { touchY = null; }, { passive:true });
+
+  const sY = document.getElementById('sSpin');   // Y spin speed
+  const sX = document.getElementById('sSens');   // X spin speed
+  const sZ = document.getElementById('sZrot');   // Z spin speed
+  const bSpin = document.getElementById('bPause');
+  const bReset = document.getElementById('bReset');
+
+  const degPerSec = (v) => (v/100) * 60;         // slider -> 0..60 deg/s
+  state.ySpeed = degPerSec(sY.value) * RAD / 60;
+  state.xSpeed = degPerSec(sX.value) * RAD / 60;
+  state.zSpeed = degPerSec(sZ.value) * RAD / 60;
+  sY.addEventListener('input', () => { state.ySpeed = degPerSec(sY.value) * RAD / 60; });
+  sX.addEventListener('input', () => { state.xSpeed = degPerSec(sX.value) * RAD / 60; });
+  sZ.addEventListener('input', () => { state.zSpeed = degPerSec(sZ.value) * RAD / 60; });
+  bSpin.addEventListener('click', () => {
+    state.spinning = !state.spinning;
+    bSpin.setAttribute('aria-pressed', String(state.spinning));
+    bSpin.textContent = state.spinning ? 'Spin: on' : 'Spin: off';
+  });
+  bReset.addEventListener('click', () => {
+    state.xTarget = CONFIG.startRotation.x * RAD;
+    state.yTarget = CONFIG.startRotation.y * RAD;
+    state.zTarget = CONFIG.startRotation.z * RAD;
+  });
+
+  // ---------- readouts ----------
+  const gSpin = document.getElementById('gSpin');
+  const gSpiral = document.getElementById('gSpiral');
+  const gLift = document.getElementById('gLift');
+  const live = document.getElementById('live');
+
+  // ---------- resize ----------
+  // put the rig pivot at the exact centre of the line — length/2 on z, height/2 on y — so X and Y rotate about the middle
+  {
+    const cbox = new THREE.Box3();
+    objects.forEach(o => cbox.expandByObject(o));
+    const c = cbox.getCenter(new THREE.Vector3());
+    rig.children.forEach(ch => ch.position.sub(c)); // objects + labels shift together, keeping their relative layout
+  }
+
+  // anchor the whole line at the configurable base rendering point
+  rig.position.set(CONFIG.basePosition.x, CONFIG.basePosition.y, CONFIG.basePosition.z);
+  rig.updateMatrixWorld(true);
+
+  // frame the whole line — its sphere follows the base, so the camera stays centred on it through any rotation
+  const lineSphere = new THREE.Sphere();
+  (function(){
+    const b = new THREE.Box3();
+    objects.forEach(o => b.expandByObject(o));
+    b.getBoundingSphere(lineSphere);
+    lineSphere.radius *= 1.08;
+  })();
+  const viewDir = new THREE.Vector3(0, 0.24, 1).normalize(); // look down the line, slight elevation
+  function frame(){
+    const vFOV = camera.fov * Math.PI/180;
+    const hFOV = 2 * Math.atan(Math.tan(vFOV/2) * camera.aspect);
+    const fit = Math.min(vFOV, hFOV);                    // limiting axis (portrait or landscape)
+    const margin = camera.aspect < 1 ? 1.28 : 1.14;      // extra breathing room in portrait
+    const dist = (lineSphere.radius / Math.sin(fit/2)) * margin;
+    camera.position.copy(lineSphere.center).add(viewDir.clone().multiplyScalar(dist));
+    camera.lookAt(lineSphere.center);
+  }
+  function resize(){
+    const w = canvas.clientWidth  || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    frame();
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+  if (window.ResizeObserver){ new ResizeObserver(resize).observe(canvas); } // handles mobile toolbar show/hide
+  resize();
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function tick(now){
+    requestAnimationFrame(tick);
+    const dt = Math.min((now - last)/16.67, 3); last = now;
+
+    if (!state.hoverPaused){                    // freeze all motion while a label is hovered
+      if (state.spinning){                      // gradual clockwise auto-spin
+        state.yTarget -= state.ySpeed * dt;
+        state.xTarget -= state.xSpeed * dt;
+        state.zTarget -= state.zSpeed * dt;
+      }
+      state.yAngle += (state.yTarget - state.yAngle) * 0.1;  // eased follow
+      state.xAngle += (state.xTarget - state.xAngle) * 0.1;
+      state.zAngle += (state.zTarget - state.zAngle) * 0.1;
+    }
+
+    // the whole line rotates as one rigid entity about the configurable X, Y and Z axes
+    rig.rotation.set(state.xAngle, state.yAngle, state.zAngle);
+
+    // telemetry
+    const wrap = (r) => { let d = (r*180/Math.PI) % 360; if (d < 0) d += 360; return d; };
+    gSpin.textContent = wrap(state.yAngle).toFixed(0) + '\u00B0';
+    gSpiral.textContent = wrap(state.xAngle).toFixed(0) + '\u00B0';
+    gLift.textContent = wrap(state.zAngle).toFixed(0) + '\u00B0';
+    live.style.opacity = state.hoverPaused ? 0.2
+      : (state.spinning ? (0.55 + 0.45*Math.abs(Math.sin(now*0.004))) : 0.5);
+
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
